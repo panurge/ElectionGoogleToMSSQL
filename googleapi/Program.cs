@@ -90,7 +90,7 @@ namespace SheetsQuickstart
                         // Print columns A and E, which correspond to indices 0 and 4.
                         Console.WriteLine("{0}, {1}, {2}, {3}", row[0], row[1], row[2], row[3]);
                     }
-                    catch { Console.WriteLine("CONSTITUENCY DUPLICATE"); }
+                    catch(SqlException e) { Console.WriteLine("CONSTITUENCY DUPLICATE " + e.Message); }
                 }
             }
             else
@@ -124,14 +124,23 @@ namespace SheetsQuickstart
                         cmd.ExecuteNonQuery();
                         Console.WriteLine("{0}, {1}, {2}, {3}, {4}", row[0], row[1], row[2], row[3], row[4]);
                     }
-                    catch { Console.WriteLine("REGION DUPLICATE"); }
+                    catch(SqlException e) { Console.WriteLine("REGION DUPLICATE " + e.Message); }
                 }
             }
             else
             {
                 Console.WriteLine("No data found.");
             }
-           
+
+            //cmd.Parameters.RemoveAt("@Constituency");
+            cmd.Parameters.RemoveAt("@Region");
+            cmd.Parameters.RemoveAt("@GroupID");
+            //cmd.Parameters.RemoveAt("@Constituency");
+            cmd.Parameters.RemoveAt("@Party");
+            cmd.Parameters.RemoveAt("@Surname");
+            cmd.Parameters.RemoveAt("@Forenames");
+
+            Console.WriteLine("Starting Fixing Tables");
             cmd.CommandText = @"USE Elections2017
                                 update regionalCandidates2021 set RegionID = (select  RegionID from Elections2016.dbo.Regions where region = regionalCandidates2021.Region)
                                 update regionalCandidates2021 set PartyID = (select PartyID from Elections2016.dbo.Parties where party = regionalCandidates2021.Party)
@@ -198,7 +207,10 @@ namespace SheetsQuickstart
                                 END
                                 CLOSE MY_CURSOR
                                 DEALLOCATE MY_CURSOR";
+            cmd.ExecuteNonQuery();
             conn.Close();
+            Console.WriteLine("Finished Fixing Tables");
+            Console.WriteLine("Awaiting Input");
             Console.Read();
         }
     }
