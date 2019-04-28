@@ -1,20 +1,20 @@
 ﻿using Google.Apis.Auth.OAuth2;
+using Google.Apis.Services;
 using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
-using Google.Apis.Services;
 using Google.Apis.Util.Store;
+using HtmlAgilityPack;
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Threading;
-using System.Data.SqlClient;
-using System.Data.SqlTypes;
 using System.Data;
-using HtmlAgilityPack;
-using System.Collections.Generic;
-using System.Net;
+using System.Data.SqlClient;
 using System.Diagnostics;
-using System.Xml;
+using System.IO;
+//using System.Collections.Generic;
+using System.Net;
+using System.Threading;
+
+//compiler at C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe
 
 namespace SheetsQuickstart
 {
@@ -31,63 +31,148 @@ namespace SheetsQuickstart
 
         static void Main(string[] args)
         {
-            //webScrape();
-            // WebClient webClient = new WebClient();
-            // webClient.Credentials = new System.Net.NetworkCredential("UserName", "Password", "Domain");
-            //// string pageHTML = webClient.DownloadString("https://www.bbc.co.uk/news/politics/wales-constituencies/W09000022");
-            // string pageHTML = webClient.DownloadString("http://10.176.4.109:8080/Default.aspx");
-            var s = @"<span class=""exchangeable"" data-value=' *Segno Preliminare Quarto Orario 20190412* ' data-names='[""Titolo""]' data-detail=""Titolo"" data-detail-value=""Segno Preliminare Quarto Orario 20190412"">Segno Preliminare Quarto Orario 20190412</span>";
-            var doc = HtmlNode.CreateNode(s);
-            Debug.WriteLine(doc.GetAttributeValue("data-names", "default"));
-            Debug.WriteLine(doc.InnerText);
-            // var doch = new HtmlDocument();
-            // //doch.LoadHtml(@"<html><body><div id='foo'>text</div></body></html>");
-            // //var div = doch.GetElementbyId("foo");
-            // doch.LoadHtml(pageHTML);
-            // //var doc = HtmlNode.CreateNode(doch.ToString());
-            // XmlNamespaceManager oManager = new XmlNamespaceManager(new NameTable());
-            // oManager.AddNamespace("ns", "http://www.w2.org/1999/xhtml");
-            // //*[@id="Repeater1_lblRegion2"]
-            // //*[@id='Repeater1_lblRegion2']";
-            // //*[@id="myTable"]/tbody/tr[2]/td[1]/a
-            // string nodestr = "//*[@id='myTable']/tbody/tr[2]/td[1]/a";
-            // nodestr= "//*[@id='myTable']/tbody/tr[2]/td[1]/a";
-            // nodestr = "//div[@class='menu']//text()[normalize-space()])[last()]";
-            //*[@id="myTable"]/tbody/tr[2]/td[2]
-            //*[@id="myTable"]/tbody/tr[2]/td[1]/a
-            //*[@id="myTable"]/tbody/tr[2]/td[1]/a
-            ;            //"*[@id=\"wales_constituency_result_table\"]/div/table/tbody/tr[1]/td[2]/span[2]";
-                         //@"(//*[@id='page']/div[2]/div/div[1]/h1"
-                         // HtmlNode node = doch.DocumentNode.SelectSingleNode(nodestr);
-                         //HtmlNode node = doch.DocumentNode.SelectSingleNode(nodestr);
-                         //Debug.WriteLine(node.XPath.ToString());
-                         // Show info
-                         //System.Console.WriteLine(div.OuterHtml);
+            webScrapeRegion();
 
-            //// Show info
-            //FiddleHelper.WriteTable(new List<string>() { div.OuterHtml });
+            //webScrapeConst();
+            
+            //updateCandidates();
 
-            //// Show info
-            //FiddleHelper.WriteTable(new List<HtmlAgilityPack.HtmlNode>() { div });
-
-            //Console.WriteLine("Awaiting Input");
-            //Console.Read();
             //loadOfficialDataRotated();
+
+            Console.WriteLine("Awaiting Input");
+            Console.Read();
+
         }
-        static void webScrape()
+
+
+        static void webScrapeRegion()
         {
-            HttpWebRequest myHttpWebRequest = (HttpWebRequest)WebRequest.Create("http://10.176.4.109:8080/Default.aspx");
-            HttpWebResponse myHttpWebResponse = (HttpWebResponse)myHttpWebRequest.GetResponse();
-            var stream = myHttpWebResponse.GetResponseStream();
-            var reader = new StreamReader(stream);
-            string html = reader.ReadToEnd();
-            XmlDocument doc = new XmlDocument();
-            doc.LoadXml(html);
-            XmlNamespaceManager oManager = new XmlNamespaceManager(new NameTable());
-            oManager.AddNamespace("ns", "http://www.w2.org/1999/xhtml");
-            doc.SelectSingleNode("/ns:uclassify/ns:readCalls/ns:classify/ns:classification/ns:class[1]/@p", oManager);
-            Debug.WriteLine(doc.ToString());
+            conn.Open();
+            cmd.CommandText = @"insert into BBC_Region_2016 (RegionGSG,Region,Party,Result)values( @RegionGSG,@Region,@Party,@Result)";
+            cmd.Parameters.Add("@RegionGSG", SqlDbType.VarChar);
+            cmd.Parameters.Add("@Region", SqlDbType.VarChar);
+            cmd.Parameters.Add("@Party", SqlDbType.VarChar);
+            cmd.Parameters.Add("@Result", SqlDbType.Int);
+
+            HtmlNodeCollection nodes, partynodes;
+            string regionsLink = "https://www.bbc.co.uk/news/politics/wales-regions/";
+
+            //<h1 class="politics-header__title politics-header__title--constituency">Mid and West Wales</h1>
+            string regionNameSel = "//h1[@class=\"politics-header__title politics-header__title--constituency\"]";
+            string[] regions = { "W10000006", "W10000001", "W10000007", "W10000008", "W10000009" };
+            string nodestr = "//span[@class=\"results-table__body-text\"]";
+            nodestr = "//tr[@class=\"results-table__body-row\"]";
+            
+            string partynodestr = "//p[@class=\"results-table__party-name-const-region--short\"]";
+            var doch = new HtmlDocument();
+
+            foreach (string regionGSG in regions)
+            {
+                //Debug.WriteLine(region);
+                HttpWebRequest myHttpWebRequest = (HttpWebRequest)WebRequest.Create(regionsLink + regionGSG);
+                HttpWebResponse myHttpWebResponse = (HttpWebResponse)myHttpWebRequest.GetResponse();
+                var stream = myHttpWebResponse.GetResponseStream();
+                var reader = new StreamReader(stream);
+                string html = reader.ReadToEnd();
+
+                doch.LoadHtml(html);
+                string region = doch.DocumentNode.SelectSingleNode(regionNameSel).InnerText;
+                int i = 0;
+                int result;
+                nodes = doch.DocumentNode.SelectNodes(nodestr);
+                partynodes = doch.DocumentNode.SelectNodes(partynodestr);
+                foreach(HtmlNode n in nodes)
+                {
+                    
+                    if (n.SelectNodes(".//span[@class=\"results-table__body-text\"]")[2].InnerText == "2")
+                    {
+                        result = (Int32.Parse(n.SelectNodes(".//span[@class=\"results-table__body-text\"]")[3].InnerText.Replace(",", "")));
+                    }
+
+                    else
+                    {
+                        result = (Int32.Parse(n.SelectNodes(".//span[@class=\"results-table__body-text\"]")[2].InnerText.Replace(",", "")));
+                    }
+                    Debug.WriteLine(result);
+
+                    cmd.Parameters["@RegionGSG"].Value = regionGSG;
+                    cmd.Parameters["@Region"].Value = region;
+                    cmd.Parameters["@Party"].Value = partynodes[i++].InnerText;
+                    cmd.Parameters["@Result"].Value = result;
+                    cmd.ExecuteNonQuery();
+
+                }
+            }
         }
+
+
+        static void webScrapeConst()
+        {
+            conn.Open();
+            cmd.CommandText = @"insert into BBC_Const_2016 (ConstGSG,Constituency,Party,Name,Result)values( @ConstGSG,@Constituency,@Party,@Name,@Result)";
+            cmd.Parameters.Add("@ConstGSG", SqlDbType.VarChar);
+            cmd.Parameters.Add("@Name", SqlDbType.VarChar);
+            cmd.Parameters.Add("@Constituency", SqlDbType.VarChar);
+            cmd.Parameters.Add("@Party", SqlDbType.VarChar);
+            cmd.Parameters.Add("@Result", SqlDbType.Int);
+            
+            string[] consts = { "W09000001", "W09000002", "W09000003", "W09000004", "W09000005", "W09000006", "W09000007",
+                                "W09000008", "W09000009", "W09000010", "W09000011", "W09000012", "W09000014", "W09000015",
+                                "W09000016", "W09000017", "W09000018", "W09000019", "W09000020", "W09000021", "W09000022",
+                                "W09000023", "W09000025", "W09000026", "W09000029", "W09000031", "W09000034", "W09000035",
+                                "W09000036", "W09000037", "W09000038", "W09000039", "W09000040", "W09000041", "W09000042",
+                                "W09000043", "W09000044", "W09000045", "W09000046", "W09000047"};
+
+            string constLink = "https://www.bbc.co.uk/news/politics/wales-constituencies/";
+            
+
+            HtmlNodeCollection nodes, partynodes;
+            string nodestr = "//span[@class=\"results-table__body-text\"]";
+            //< p class="results-table__party-name-const-region--short">LAB</p>
+            string partynodestr = "//p[@class=\"results-table__party-name-const-region--short\"]";
+            string constNameSel = "//h1[@class=\"politics-header__title politics-header__title--constituency\"]";
+            var doch = new HtmlDocument();
+
+            foreach (string conststr in consts)
+            {
+                Debug.WriteLine(conststr);
+                HttpWebRequest myHttpWebRequest = (HttpWebRequest)WebRequest.Create(constLink + conststr);
+                HttpWebResponse myHttpWebResponse = (HttpWebResponse)myHttpWebRequest.GetResponse();
+                var stream = myHttpWebResponse.GetResponseStream();
+                var reader = new StreamReader(stream);
+                string html = reader.ReadToEnd();
+
+                doch.LoadHtml(html);
+                string constituency = doch.DocumentNode.SelectSingleNode(constNameSel).InnerText;
+                Debug.WriteLine(constituency);
+
+                nodes = doch.DocumentNode.SelectNodes(nodestr);
+                partynodes = doch.DocumentNode.SelectNodes(partynodestr);
+
+                Debug.WriteLine(nodes.Count);
+                int lines = nodes.Count / 3;
+                for (int i = 0; i < lines; i++)
+                {
+                    Debug.Write(partynodes[i].InnerText + ", ");
+                    // for (int j = 0; j < 3; j++)
+                    {
+                        cmd.Parameters["@ConstGSG"].Value = conststr;
+                        cmd.Parameters["@Name"].Value = nodes[3 * i].InnerText;
+                        cmd.Parameters["@Constituency"].Value = constituency;
+                        cmd.Parameters["@Party"].Value = partynodes[i].InnerText;
+                        cmd.Parameters["@Result"].Value = Int32.Parse(nodes[3 * i + 1].InnerText.Replace(",",""));
+                        cmd.ExecuteNonQuery();
+                        //Debug.WriteLine(3*i+j);
+                        Debug.Write(nodes[3 * i].InnerText + ", ");
+                        Debug.Write(nodes[3 * i + 1].InnerText + ", ");
+                        //Debug.Write(nodes[3 * i + 2].InnerText + ", ");
+                    }
+                    Debug.WriteLine("");
+                }
+            }
+            conn.Close();
+        }
+
         static void loadOfficialDataRotated()
         {
             cmd.CommandText = @"insert into OfficialConstituencyDataRotated (ConstituencyID,Constituency,PartyID,Result)values( @ConstituencyID,@Constituency,@PartyID,@Result)";
