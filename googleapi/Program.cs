@@ -31,7 +31,8 @@ namespace SheetsQuickstart
 
         static void Main(string[] args)
         {
-            webScrapeRegion();
+            webScrapeIrishCouncil();
+            //webScrapeRegion();
 
             //webScrapeConst();
             
@@ -105,7 +106,79 @@ namespace SheetsQuickstart
             }
         }
 
+        static void webScrapeIrishCouncil()
+        {
 
+            //string irlink = @"https://www.bbc.co.uk/news/topics/cj736r74vq9t/northern-ireland-local-elections-2019";
+            string irlink = @"https://www.bbc.co.uk/news/topics/ceeqy0e9894t/england-local-elections-2019";
+            //<a href="https://www.bbc.co.uk/news/topics/c4l3n2y73wkt/antrim-and-newtownabbey-borough-council" class="nw-c-council-az__link">Antrim and Newtownabbey</a>
+            //<a href="https://www.bbc.co.uk/news/topics/c18230em1n1t/belfast-city-council" class="nw-c-council-az__link">Belfast City</a>
+            HtmlNodeCollection nodes, partynodes;
+            //< a href = "http://www.bbc.co.uk/news/topics/c0gkgvm4pwgt" class="gel-long-primer-bold nw-c-council-az__link">Allerdale</a>
+
+            string nodestr = "//a[@class=\"gel-long-primer-bold nw-c-council-az__link\"]";
+            
+            var doch = new HtmlDocument();
+            //Debug.WriteLine(conststr);
+            HttpWebRequest myHttpWebRequest = (HttpWebRequest)WebRequest.Create(irlink);
+            HttpWebResponse myHttpWebResponse = (HttpWebResponse)myHttpWebRequest.GetResponse();
+            var stream = myHttpWebResponse.GetResponseStream();
+            var reader = new StreamReader(stream);
+            string html = reader.ReadToEnd();
+
+            doch.LoadHtml(html);
+            //string constituency = doch.DocumentNode.SelectSingleNode(constNameSel).InnerText;
+            //Debug.WriteLine(constituency);
+
+            nodes = doch.DocumentNode.SelectNodes(nodestr);
+            //partynodes = doch.DocumentNode.SelectNodes(partynodestr);
+
+            string partynodestr = "//span[@class=\"long-name\"]"; //"//*[@id=\"site-container\"]/div[2]/div[3]/div/div/ol/div[1]/dl/div[1]/dt/span[2]";
+            ////*[@id="site-container"]/div[2]/div[3]/div/div/ol/div[1]/dl/div[2]/dd[2]/text()
+            ////*[@id="site-container"]/div[2]/div[3]/div/div/ol/div[1]/dl/div[2]/dd[3]/text()
+            //*[@id="site-container"]/div[2]/div[3]/div/div/ol/div[2]/dl/div[2]/dd[2]/text()
+            Debug.WriteLine(nodes.Count);
+
+            //<dd role="gridcell" class="score__grid__content councils--elected">
+            //    < span class="elected-long-name" aria-hidden="true">Elected in 2019</span>
+            //    14
+            //</dd>
+            string seatsSelector = "//dd[@class=\"score__grid__content councils--elected\"]";
+            string seatsLastSelector = "//dd[@class=\"score__grid__content councils--total\"]";
+
+            //< h1 id = "main-content" class="topic-title gel-trafalgar-bold gs-u-pt-alt+ gs-u-pb+" tabindex="-1">Antrim and Newtownabbey Borough Council</h1>
+            string councilSelector = "//h1[@id=\"main-content\"]";
+
+            foreach (HtmlNode node in nodes)
+            {
+                string href = node.Attributes["href"].Value.Replace("&#x2F;", "/");
+                Debug.WriteLine(href);
+                var docp = new HtmlDocument();
+                //Debug.WriteLine(conststr);
+                HttpWebRequest myHttpWebRequest2 = (HttpWebRequest)WebRequest.Create(href);
+                HttpWebResponse myHttpWebResponse2 = (HttpWebResponse)myHttpWebRequest2.GetResponse();
+                var stream2 = myHttpWebResponse2.GetResponseStream();
+                var reader2 = new StreamReader(stream2);
+                string html2 = reader2.ReadToEnd();
+                //Debug.WriteLine(html);
+                docp.LoadHtml(html2);
+                HtmlNodeCollection parties = docp.DocumentNode.SelectNodes(partynodestr);
+                //Debug.WriteLine(parties.Count);
+                HtmlNodeCollection seats = docp.DocumentNode.SelectNodes(seatsSelector);
+                //Debug.WriteLine(seats.Count);
+                HtmlNodeCollection seatsLast = docp.DocumentNode.SelectNodes(seatsLastSelector);
+                //Debug.WriteLine(seatsLast.Count);
+                HtmlNode councilN = docp.DocumentNode.SelectSingleNode(councilSelector);
+                Debug.WriteLine(councilN.InnerText);
+                int i = 0;
+                //.Replace("Elected in 2019", "").Trim()
+                //.Replace("Elected in 2014", "").Trim()
+                foreach (HtmlNode party in parties)
+                {
+                    Debug.WriteLine(party.InnerText + ", " + seats[i].InnerText.Replace("Elected in 2019", "").Trim() + ", " + seatsLast[i++].InnerText.Replace("Total", "").Trim());
+                }
+            }
+        }
         static void webScrapeConst()
         {
             conn.Open();
